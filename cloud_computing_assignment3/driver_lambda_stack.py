@@ -18,7 +18,7 @@ class DriverLambdaStack(Stack):
         s3_bucket = s3.Bucket.from_bucket_name(
             self,
             "ImportedS3Bucket",
-            bucket_name="weihao-cdk-test"
+            bucket_name="weihao-cdk-bucket"
         )
 
         # Define Requests Layer for external HTTP requests
@@ -40,7 +40,7 @@ class DriverLambdaStack(Stack):
             layers=[requests_layer],  # Attach the requests layer
             environment={
                 "S3_BUCKET_NAME": s3_bucket.bucket_name,
-                "PLOTTING_API_URL": "https://6ubfmroqr4.execute-api.us-east-1.amazonaws.com/prod"
+                "PLOTTING_API_URL": "https://siu9t5pt2d.execute-api.us-east-1.amazonaws.com/prod"
             },
             timeout=Duration.minutes(1)
         )

@@ -9,8 +9,8 @@ app = cdk.App()
 
 # Define each Lambda in its own stack
 DriverLambdaStack(app, "DriverLambdaStack")
-PlottingLambdaStack(app, "PlottingLambdaStack")
-SizeTrackingLambdaStack(app, "SizeTrackingLambdaStack")
+# PlottingLambdaStack(app, "PlottingLambdaStack")
+# SizeTrackingLambdaStack(app, "SizeTrackingLambdaStack")
 
 # ResourcesStack(app, "ResourcesStack")
 

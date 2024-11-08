@@ -28,13 +28,11 @@ class PlottingLambdaStack(Stack):
             bucket_name="weihao-cdk-bucket"
         )
 
-        # Define Matplotlib Layer
-        matplotlib_layer = _lambda.LayerVersion(
+        # Use an existing Matplotlib Layer by specifying the ARN
+        matplotlib_layer = _lambda.LayerVersion.from_layer_version_arn(
             self,
             "MatplotlibLayer",
-            code=_lambda.Code.from_asset("matplotlib_layer.zip"),  # Ensure this path points to the correct zip file
-            compatible_runtimes=[_lambda.Runtime.PYTHON_3_9],
-            description="A layer with matplotlib dependencies"
+            layer_version_arn="arn:aws:lambda:us-east-1:770693421928:layer:Klayers-p39-matplotlib:1"
         )
 
         # Define the Plotting Lambda function with the layer
@@ -43,8 +41,8 @@ class PlottingLambdaStack(Stack):
             "PlottingLambda",
             runtime=_lambda.Runtime.PYTHON_3_9,
             handler="plotting_lambda.lambda_handler",
-            code=_lambda.Code.from_asset("lambda/plotting_lambda"),  # Folder containing Lambda code
-            layers=[matplotlib_layer],  # Attach the layer
+            code=_lambda.Code.from_asset("lambda/plotting_lambda"),
+            layers=[matplotlib_layer],
             environment={
                 "DYNAMODB_TABLE_NAME": dynamodb_table.table_name,
                 "S3_BUCKET_NAME": s3_bucket.bucket_name
