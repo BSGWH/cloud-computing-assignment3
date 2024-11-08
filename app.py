@@ -1,28 +1,17 @@
 #!/usr/bin/env python3
-import os
-
 import aws_cdk as cdk
-
-from cloud_computing_assignment3.cloud_computing_assignment3_stack import CloudComputingAssignment3Stack
-
+from cloud_computing_assignment3.cloud_computing_assignment3_stack import ResourcesStack
+from cloud_computing_assignment3.driver_lambda_stack import DriverLambdaStack
+from cloud_computing_assignment3.plotting_lambda_stack import PlottingLambdaStack
+from cloud_computing_assignment3.size_tracking_lambda_stack import SizeTrackingLambdaStack
 
 app = cdk.App()
-CloudComputingAssignment3Stack(app, "CloudComputingAssignment3Stack",
-    # If you don't specify 'env', this stack will be environment-agnostic.
-    # Account/Region-dependent features and context lookups will not work,
-    # but a single synthesized template can be deployed anywhere.
 
-    # Uncomment the next line to specialize this stack for the AWS Account
-    # and Region that are implied by the current CLI configuration.
+# Define each Lambda in its own stack
+DriverLambdaStack(app, "DriverLambdaStack")
+PlottingLambdaStack(app, "PlottingLambdaStack")
+SizeTrackingLambdaStack(app, "SizeTrackingLambdaStack")
 
-    #env=cdk.Environment(account=os.getenv('CDK_DEFAULT_ACCOUNT'), region=os.getenv('CDK_DEFAULT_REGION')),
-
-    # Uncomment the next line if you know exactly what Account and Region you
-    # want to deploy the stack to. */
-
-    #env=cdk.Environment(account='123456789012', region='us-east-1'),
-
-    # For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html
-    )
+# ResourcesStack(app, "ResourcesStack")
 
 app.synth()
