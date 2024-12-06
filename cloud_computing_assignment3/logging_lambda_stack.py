@@ -6,6 +6,7 @@ from aws_cdk import (
     Duration,
     aws_logs as logs,
     aws_lambda_event_sources as lambda_sources,
+    aws_cloudwatch as cloudwatch,
     CfnOutput
 )
 from constructs import Construct
@@ -51,7 +52,28 @@ class LoggingLambdaStack(Stack):
             actions=["logs:StartQuery", "logs:GetQueryResults", "logs:StopQuery"],
             resources=[log_group.log_group_arn]
         ))
-        
+
+         # Create a Metric Filter
+        metric_filter = logs.MetricFilter(
+            self,
+            "ObjectSizeChangeMetricFilter",
+            log_group=log_group,
+            metric_namespace="Assignment4App",
+            metric_name="TotalObjectSize",
+            filter_pattern=logs.FilterPattern.exists("$.size_delta"),
+            metric_value="$.size_delta" 
+        )
+
+        # Create a CloudWatch Alarm
+        alarm = cloudwatch.Alarm(
+            self,
+            "ObjectSizeThresholdAlarm",
+            metric=metric_filter.metric(statistic="sum", period=Duration.minutes(1)),
+            threshold=20,
+            evaluation_periods=1,
+            comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD
+        )
+
         # Import the SQS queue using its ARN
         queue = sqs.Queue.from_queue_arn(
             self,
@@ -69,4 +91,5 @@ class LoggingLambdaStack(Stack):
         # Outputs for easy reference
         CfnOutput(self, "LambdaFunctionName", value=logging_lambda.function_name)
         CfnOutput(self, "LogGroupName", value=log_group.log_group_name)
-        CfnOutput(self, "LogStreamName", value="s3_operations")  # Just pass the name directly here
+        CfnOutput(self, "LogStreamName", value="s3_operations") 
+        CfnOutput(self, "CloudWatchAlarmName", value=alarm.alarm_name)
