@@ -46,6 +46,12 @@ class LoggingLambdaStack(Stack):
             resources=[log_group.log_group_arn]  # Using just the log group ARN
         ))
 
+        # Explicit permission to start queries on CloudWatch Logs
+        logging_lambda.add_to_role_policy(iam.PolicyStatement(
+            actions=["logs:StartQuery", "logs:GetQueryResults", "logs:StopQuery"],
+            resources=[log_group.log_group_arn]
+        ))
+        
         # Import the SQS queue using its ARN
         queue = sqs.Queue.from_queue_arn(
             self,

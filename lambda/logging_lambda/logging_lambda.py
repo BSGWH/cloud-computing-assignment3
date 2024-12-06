@@ -13,54 +13,46 @@ def lambda_handler(event, context):
     except log_client.exceptions.ResourceAlreadyExistsException:
         pass  # Log stream already exists
 
-    # Log the incoming event for debug purposes
-    print("Received event:", json.dumps(event))
-
     processed_records = []
 
     for record in event['Records']:
-        print("Record Body:", record['body'])
         body = json.loads(record['body'])
-        print("Decoded Body:", body)
-
         if 'Message' in body:
-            try:
-                sns_message = json.loads(body['Message'])
-                print("SNS Message:", sns_message)
+            sns_message = json.loads(body['Message'])
 
-                if 'Records' in sns_message:
-                    for s3_event in sns_message['Records']:
-                        object_key = s3_event['s3']['object']['key']
-                        bucket_name = s3_event['s3']['bucket']['name']
-                        event_name = s3_event['eventName']
-                        size_delta = s3_event['s3']['object'].get('size', 0)
-                        if 'ObjectRemoved' in event_name:
-                            size_delta = -size_delta  # Change sign for deletions
+            if 'Records' in sns_message:
+                for s3_event in sns_message['Records']:
+                    object_key = s3_event['s3']['object']['key']
+                    event_name = s3_event['eventName']
+                    size_delta = s3_event['s3']['object'].get('size', 0)
 
-                        log_event = {
-                            'timestamp': int(time.time() * 1000),  # CloudWatch needs milliseconds
-                            'message': json.dumps({
-                                'object_name': object_key,
-                                'size_delta': size_delta
-                            })
-                        }
+                    if 'ObjectRemoved' in event_name:
+                        # Fetch the size from logs using filter_log_events
+                        size_delta = get_object_size_from_logs(log_client, log_group_name, object_key)
 
-                        # Send log event to CloudWatch
-                        log_client.put_log_events(
-                            logGroupName=log_group_name,
-                            logStreamName=log_stream_name,
-                            logEvents=[log_event]
-                        )
 
-                        processed_records.append({
-                            'object_key': object_key,
-                            'size_delta': size_delta,
-                            'event_name': event_name
+                    log_event = {
+                        'timestamp': int(time.time() * 1000),
+                        'message': json.dumps({
+                            'object_name': object_key,
+                            'size_delta': -size_delta if 'ObjectRemoved' in event_name else size_delta
                         })
-                else:
-                    print("No 'Records' key in SNS Message, may not be an S3 event notification.")
-            except json.JSONDecodeError as e:
-                print("JSON decoding error:", e)
+                    }
+
+                    # Send log event to CloudWatch
+                    log_client.put_log_events(
+                        logGroupName=log_group_name,
+                        logStreamName=log_stream_name,
+                        logEvents=[log_event]
+                    )
+
+                    processed_records.append({
+                        'object_key': object_key,
+                        'size_delta': -size_delta if 'ObjectRemoved' in event_name else size_delta,
+                        'event_name': event_name
+                    })
+            else:
+                print("No 'Records' key in SNS Message, may not be an S3 event notification.")
 
     response = {
         'statusCode': 200,
@@ -69,6 +61,29 @@ def lambda_handler(event, context):
             'processed_records': processed_records
         })
     }
-
-    print("Response:", json.dumps(response))
     return response
+
+def get_object_size_from_logs(log_client, log_group_name, object_key):
+    """Retrieve the object's size from CloudWatch logs."""
+    query = f'fields @message | filter object_name="{object_key}" and size_delta > 0 | sort @timestamp desc | limit 1'
+    start_query_response = log_client.start_query(
+        logGroupName=log_group_name,
+        startTime=int(time.time()) - 86400,  # Search within the last 24 hours
+        endTime=int(time.time()),
+        queryString=query,
+    )
+    query_id = start_query_response['queryId']
+    time.sleep(1) 
+    response = log_client.get_query_results(
+        queryId=query_id
+    )
+
+    if response['results']:
+        # Extract size from log event
+        for result in response['results']:
+            for field in result:
+                if field['field'] == '@message':
+                    log_event = json.loads(field['value'])
+                    return log_event['size_delta']
+    print(f"No logs found for {object_key} creation size.")  # Debug: Inform if no logs were found
+    return 0
